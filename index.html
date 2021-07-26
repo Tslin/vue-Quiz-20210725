@@ -79,6 +79,14 @@
         <p style="display: inline; float: left">
           站點名稱搜尋: <input type="text" v-model="keyword" />
         </p>
+        <label style="margin-left: 20px; margin-right: 5px" for=""
+          >呈現行數:
+        </label>
+        <select name="" id="" v-model="rowNumber">
+          <option value="10">10</option>
+          <option value="20">20</option>
+          <option value="30">30</option>
+        </select>
         <p style="display: inline; float: right">
           總數: {{filteredStops.length}} 筆
         </p>
@@ -126,7 +134,7 @@
         </thead>
         <tbody>
           <tr v-for="(stop,index) in displayStops">
-            <td>{{index+1+(paginIndex-1)*10}}</td>
+            <td>{{index+1+(paginIndex-1)*this.rowNumber}}</td>
             <td>{{stop.sna}}</td>
             <td>{{stop.sarea}}</td>
             <td>{{stop.sbi}}</td>
@@ -136,7 +144,10 @@
         </tbody>
       </table>
       <div class="button_wrap">
-        <button v-show="paginIndex!=1" @click="arrowButton(0)">
+        <button
+          v-show="paginIndex!=1 && isSearchResult"
+          @click="arrowButton(0)"
+        >
           <i class="fa fa-chevron-left" aria-hidden="true"></i>
           Prev
         </button>
@@ -151,7 +162,7 @@
         </button>
 
         <button
-          v-show="paginIndex!=Math.ceil(filteredStops.length/10)"
+          v-show="paginIndex!=Math.ceil(filteredStops.length/this.rowNumber) && isSearchResult"
           @click="arrowButton(1)"
         >
           Next
@@ -180,7 +191,9 @@
             isAvlCardAsc: false,
             isParkingLotAsc: false,
             isCarSort: true,
+            isSearchResult: false,
             paginIndex: 1,
+            rowNumber: 10,
           };
         },
         created() {
@@ -201,24 +214,29 @@
               stops.sna.includes(this.keyword)
             );
             this.sortByAvlBike();
-
-            this.dividePage(1);
+            this.dividePage();
           },
           keyword: function () {
             this.filteredStops = this.uBikeStops.filter((stops) =>
               stops.sna.includes(this.keyword)
             );
 
+            this.isSearchResult = this.filteredStops.length > 0 ? true : false;
+
             if (this.isCarSort) this.sortByAvlBike(true);
             else this.sortByParkingLot(true);
 
+            this.paginIndex = 1; //always puts user to square one
+            this.dividePage();
+          },
+          rowNumber: function () {
             this.paginIndex = 1;
-            this.dividePage(1);
+            this.dividePage(); //always puts user to square one
           },
         },
         computed: {
           pageSet: function () {
-            let maxNum = Math.ceil(this.filteredStops.length / 10);
+            let maxNum = Math.ceil(this.filteredStops.length / this.rowNumber);
             let minNum = 1;
             minNum = this.paginIndex <= minNum ? minNum : this.paginIndex;
             let result = [];
@@ -254,6 +272,7 @@
             }
           },
           sortByParkingLot: function (preserve = false) {
+            /* By using 'preserve', the sorting preference can be preserved */
             this.isCarSort = false;
             let result = this.filteredStops.sort((a, b) => b.tot - a.tot);
 
@@ -265,10 +284,11 @@
               this.filteredStops = result;
             }
           },
-          dividePage: function (pageIndex = 0) {
+          dividePage: function (pageIndex = 1) {
             this.displayStops = this.filteredStops.filter(
               (item, index) =>
-                index >= 10 * (pageIndex - 1) && index < 10 * pageIndex
+                index >= this.rowNumber * (pageIndex - 1) &&
+                index < this.rowNumber * pageIndex
             );
           },
           paginClicked: function (value) {
@@ -276,8 +296,9 @@
             this.dividePage(value);
           },
           arrowButton: function (isLeft) {
-            let maxNum = Math.ceil(this.filteredStops.length / 10);
+            let maxNum = Math.ceil(this.filteredStops.length / this.rowNumber);
 
+            //it seems I cannot pass true/false as param. The result is oppositive
             if (isLeft == 0)
               this.paginIndex =
                 this.paginIndex - 1 <= 0 ? 1 : this.paginIndex - 1;
