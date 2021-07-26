@@ -31,7 +31,6 @@
       }
 
       .button_wrap {
-        width: 500px;
         padding: 20px;
       }
 
@@ -41,10 +40,6 @@
         padding: 5px 10px;
         min-width: 40px;
         box-shadow: gray;
-        margin-right: 10px;
-      }
-
-      .button_wrap span {
         margin-right: 10px;
       }
 
@@ -139,15 +134,18 @@
             <td>{{stop.sarea}}</td>
             <td>{{stop.sbi}}</td>
             <td>{{stop.tot}}</td>
-            <td>{{stop.mday}}</td>
+            <td>{{formatDate(stop.mday)}}</td>
           </tr>
         </tbody>
       </table>
       <div class="button_wrap">
         <button
-          v-show="paginIndex!=1 && isSearchResult"
-          @click="arrowButton(0)"
+          v-show="paginIndex>5 && isSearchResult"
+          v-on:click="paginClicked(1)"
         >
+          <i class="fa fa-fast-forward fa-rotate-180" aria-hidden="true"></i>
+        </button>
+        <button v-show="paginIndex!=1" v-on:click="arrowButton(0)">
           <i class="fa fa-chevron-left" aria-hidden="true"></i>
           Prev
         </button>
@@ -163,10 +161,16 @@
 
         <button
           v-show="paginIndex!=Math.ceil(filteredStops.length/this.rowNumber) && isSearchResult"
-          @click="arrowButton(1)"
+          v-on:click="arrowButton(1)"
         >
           Next
           <i class="fa fa-chevron-right" aria-hidden="true"></i>
+        </button>
+        <button
+          v-show="paginIndex<=(Math.ceil(filteredStops.length/this.rowNumber)-5) && isSearchResult"
+          v-on:click="paginClicked(Math.ceil(filteredStops.length/this.rowNumber))"
+        >
+          <i class="fa fa-fast-forward" aria-hidden="true"></i>
         </button>
       </div>
     </div>
@@ -191,7 +195,7 @@
             isAvlCardAsc: false,
             isParkingLotAsc: false,
             isCarSort: true,
-            isSearchResult: false,
+            isSearchResult: true,
             paginIndex: 1,
             rowNumber: 10,
           };
@@ -307,6 +311,15 @@
                 this.paginIndex + 1 > maxNum ? maxNum : this.paginIndex + 1;
 
             this.dividePage(this.paginIndex);
+          },
+          formatDate: function (dateVal) {
+            let result = dateVal //parse YYYYMMDDHHMMSS
+              .toString()
+              .replace(
+                /^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)$/,
+                "$4:$5:$6 $1/$2/$3"
+              );
+            return result;
           },
         },
       }).mount("#app");
