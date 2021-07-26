@@ -1,94 +1,294 @@
 <!DOCTYPE html>
 <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>練習 13： YouBike 臺北市公共自行車即時資訊</title>
 
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="X-UA-Compatible" content="ie=edge">
-  <title>練習 13： YouBike 臺北市公共自行車即時資訊</title>
+    <link
+      rel="stylesheet"
+      href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css"
+      integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M"
+      crossorigin="anonymous"
+    />
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"
+    />
 
-  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css"
-    integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M" crossorigin="anonymous">
-  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+    <style>
+      body {
+        padding: 1em;
+      }
 
-  <style>
-    body {
-      padding: 1em;
-    }
-  </style>
+      th {
+        user-select: none;
+      }
 
-  <script src="https://unpkg.com/vue@next"></script>
+      th.sortable {
+        cursor: pointer;
+      }
 
-</head>
+      .button_wrap {
+        width: 500px;
+        padding: 20px;
+      }
 
-<body>
-  <p>
-    練習 13： YouBike 臺北市公共自行車即時資訊 <br>
-    完成下列表格，並加入:
-    1. 站點名稱搜尋
-    2. 目前可用車輛 / 總停車格 的排序功能
-  </p>
+      .button_wrap button {
+        user-select: none;
+        cursor: pointer;
+        padding: 5px 10px;
+        min-width: 40px;
+        box-shadow: gray;
+        margin-right: 10px;
+      }
 
-  <hr>
+      .button_wrap span {
+        margin-right: 10px;
+      }
 
-  <div id="app">
+      .button_wrap button.selected {
+        pointer-events: none;
+        border: none;
+        background-color: rgb(74, 74, 255);
+        color: white;
+      }
 
+      .searchWrap::after {
+        content: "";
+        display: block;
+        clear: both;
+      }
+    </style>
+
+    <script src="https://unpkg.com/vue@next"></script>
+  </head>
+
+  <body>
     <p>
-      站點名稱搜尋: <input type="text">
+      練習 13： YouBike 臺北市公共自行車即時資訊 <br />
+      完成下列表格，並加入: 1. 站點名稱搜尋 2. 目前可用車輛 / 總停車格
+      的排序功能
     </p>
 
-    <table class="table table-striped">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>場站名稱</th>
-          <th>場站區域</th>
-          <th>目前可用車輛
-            <i class="fa fa-sort-asc" aria-hidden="true"></i>
-            <i class="fa fa-sort-desc" aria-hidden="true"></i>
-          </th>
-          <th>總停車格
-            <i class="fa fa-sort-asc" aria-hidden="true"></i>
-            <i class="fa fa-sort-desc" aria-hidden="true"></i>
-          </th>
-          <th>資料更新時間</th>
-        </tr>
-      </thead>
-      <tbody>
-        <!-- 請補完 -->
-      </tbody>
-    </table>
-  </div>
+    <hr />
 
+    <div id="app">
+      <div class="searchWrap">
+        <p style="display: inline; float: left">
+          站點名稱搜尋: <input type="text" v-model="keyword" />
+        </p>
+        <p style="display: inline; float: right">
+          總數: {{filteredStops.length}} 筆
+        </p>
+      </div>
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>場站名稱</th>
+            <th>場站區域</th>
+            <th
+              class="sortable"
+              v-on:click="sortByAvlBike(); dividePage(paginIndex);"
+            >
+              目前可用車輛
+              <i
+                class="fa fa-sort-asc"
+                v-if="isAvlCardAsc && isCarSort"
+                aria-hidden="true"
+              ></i>
+              <i
+                class="fa fa-sort-desc"
+                v-else-if="!isAvlCardAsc && isCarSort"
+                aria-hidden="true"
+              ></i>
+            </th>
+            <th
+              class="sortable"
+              v-on:click="sortByParkingLot(); dividePage(paginIndex);"
+            >
+              總停車格
+              <i
+                class="fa fa-sort-asc"
+                v-if="isParkingLotAsc && !isCarSort"
+                aria-hidden="true"
+              ></i>
+              <i
+                class="fa fa-sort-desc"
+                v-else-if="!isParkingLotAsc && !isCarSort"
+                aria-hidden="true"
+              ></i>
+            </th>
+            <th>資料更新時間</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(stop,index) in displayStops">
+            <td>{{index+1+(paginIndex-1)*10}}</td>
+            <td>{{stop.sna}}</td>
+            <td>{{stop.sarea}}</td>
+            <td>{{stop.sbi}}</td>
+            <td>{{stop.tot}}</td>
+            <td>{{stop.mday}}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="button_wrap">
+        <button v-show="paginIndex!=1" @click="arrowButton(0)">
+          <i class="fa fa-chevron-left" aria-hidden="true"></i>
+          Prev
+        </button>
 
-  <script>
+        <button
+          v-for="page in pageSet"
+          :value="page"
+          :class="{selected:page==paginIndex}"
+          v-on:click="paginClicked(page)"
+        >
+          {{page}}
+        </button>
 
-    // 欄位說明請參照:
-    // http://data.taipei/opendata/datalist/datasetMeta?oid=8ef1626a-892a-4218-8344-f7ac46e1aa48
-    // 半成品參考: https://kuro.tw/vue-ubike-information/
+        <button
+          v-show="paginIndex!=Math.ceil(filteredStops.length/10)"
+          @click="arrowButton(1)"
+        >
+          Next
+          <i class="fa fa-chevron-right" aria-hidden="true"></i>
+        </button>
+      </div>
+    </div>
 
-    // sno：站點代號、 sna：場站名稱(中文)、 tot：場站總停車格、
-    // sbi：場站目前車輛數量、 sarea：場站區域(中文)、 mday：資料更新時間、
-    // lat：緯度、 lng：經度、 ar：地(中文)、 sareaen：場站區域(英文)、
-    // snaen：場站名稱(英文)、 aren：地址(英文)、 bemp：空位數量、 act：全站禁用狀態
+    <script>
+      // 欄位說明請參照:
+      // http://data.taipei/opendata/datalist/datasetMeta?oid=8ef1626a-892a-4218-8344-f7ac46e1aa48
+      // 半成品參考: https://kuro.tw/vue-ubike-information/
 
-    const app = Vue.createApp({
-      data () {
-        return {
-          uBikeStops: []
-        }
-      },
-      created () {
-        fetch('https://tcgbusfs.blob.core.windows.net/blobyoubike/YouBikeTP.gz')
-            .then(res => res.json())
-            .then(json => {
-              const stops = Object.keys(json.retVal).map(key => json.retVal[key]);
+      // sno：站點代號、 sna：場站名稱(中文)、 tot：場站總停車格、
+      // sbi：場站目前車輛數量、 sarea：場站區域(中文)、 mday：資料更新時間、
+      // lat：緯度、 lng：經度、 ar：地(中文)、 sareaen：場站區域(英文)、
+      // snaen：場站名稱(英文)、 aren：地址(英文)、 bemp：空位數量、 act：全站禁用狀態
+
+      const app = Vue.createApp({
+        data() {
+          return {
+            uBikeStops: [],
+            keyword: "",
+            filteredStops: [],
+            displayStops: [],
+            isAvlCardAsc: false,
+            isParkingLotAsc: false,
+            isCarSort: true,
+            paginIndex: 1,
+          };
+        },
+        created() {
+          fetch(
+            "https://tcgbusfs.blob.core.windows.net/blobyoubike/YouBikeTP.gz"
+          )
+            .then((res) => res.json())
+            .then((json) => {
+              const stops = Object.keys(json.retVal).map(
+                (key) => json.retVal[key]
+              );
               this.uBikeStops = stops;
             });
-      }
-    }).mount('#app');
-  </script>
+        },
+        watch: {
+          uBikeStops: function () {
+            this.filteredStops = this.uBikeStops.filter((stops) =>
+              stops.sna.includes(this.keyword)
+            );
+            this.sortByAvlBike();
 
-</body>
+            this.dividePage(1);
+          },
+          keyword: function () {
+            this.filteredStops = this.uBikeStops.filter((stops) =>
+              stops.sna.includes(this.keyword)
+            );
 
+            if (this.isCarSort) this.sortByAvlBike(true);
+            else this.sortByParkingLot(true);
+
+            this.paginIndex = 1;
+            this.dividePage(1);
+          },
+        },
+        computed: {
+          pageSet: function () {
+            let maxNum = Math.ceil(this.filteredStops.length / 10);
+            let minNum = 1;
+            minNum = this.paginIndex <= minNum ? minNum : this.paginIndex;
+            let result = [];
+
+            if (minNum + 4 < maxNum) {
+              maxNum =
+                this.paginIndex + 4 >= maxNum ? maxNum : this.paginIndex + 4;
+
+              for (var i = minNum; i <= maxNum; i++) {
+                result.push(i);
+              }
+            } else {
+              let initial = maxNum - 4 >= 1 ? maxNum - 4 : 1; //To prevent out of array
+
+              for (var i = initial; i <= maxNum; i++) {
+                result.push(i);
+              }
+            }
+            return result;
+          },
+        },
+        methods: {
+          sortByAvlBike: function (preserve = false) {
+            this.isCarSort = true;
+            let result = this.filteredStops.sort((a, b) => b.sbi - a.sbi);
+
+            if (!preserve) this.isAvlCardAsc = !this.isAvlCardAsc;
+
+            if (this.isAvlCardAsc) {
+              this.filteredStops = result.reverse();
+            } else {
+              this.filteredStops = result;
+            }
+          },
+          sortByParkingLot: function (preserve = false) {
+            this.isCarSort = false;
+            let result = this.filteredStops.sort((a, b) => b.tot - a.tot);
+
+            if (!preserve) this.isParkingLotAsc = !this.isParkingLotAsc;
+
+            if (this.isParkingLotAsc) {
+              this.filteredStops = result.reverse();
+            } else {
+              this.filteredStops = result;
+            }
+          },
+          dividePage: function (pageIndex = 0) {
+            this.displayStops = this.filteredStops.filter(
+              (item, index) =>
+                index >= 10 * (pageIndex - 1) && index < 10 * pageIndex
+            );
+          },
+          paginClicked: function (value) {
+            this.paginIndex = value;
+            this.dividePage(value);
+          },
+          arrowButton: function (isLeft) {
+            let maxNum = Math.ceil(this.filteredStops.length / 10);
+
+            if (isLeft == 0)
+              this.paginIndex =
+                this.paginIndex - 1 <= 0 ? 1 : this.paginIndex - 1;
+            else
+              this.paginIndex =
+                this.paginIndex + 1 > maxNum ? maxNum : this.paginIndex + 1;
+
+            this.dividePage(this.paginIndex);
+          },
+        },
+      }).mount("#app");
+    </script>
+  </body>
 </html>
